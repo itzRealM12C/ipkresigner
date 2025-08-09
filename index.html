@@ -257,7 +257,7 @@
         <div class="terminal-body">
             <div class="terminal-output" id="output">
 <span class="success">WEBOS IPK RESIGNER TERMINAL v1.0.0</span>
-<span class="success">Copyright (c) 2025 webOS Development Tools</span>
+<span class="success">Made by M12C</span>
 <span class="info">System initializing...</span>
 <span class="success">Loading webOS CLI integration... OK</span>
 <span class="success">Loading IPK processing modules... OK</span>
@@ -380,12 +380,12 @@
             const file = event.target.files[0];
             if (file && file.name.endsWith('.ipk')) {
                 currentFile = file;
-                addToOutput('success', `📁 Loaded: ${file.name} (${formatFileSize(file.size)})`);
+                addToOutput('success', `Loaded: ${file.name} (${formatFileSize(file.size)})`);
                 enableCommands();
                 updateStatus('ready');
             } else {
-                addToOutput('error', '❌ Please select a valid IPK file');
-            }
+                addToOutput('error', '{"errorCode": 101}, {"reason": Please select a valid IPK file}');
+            }.
         }
 
         function handleDragOver(event) {
@@ -408,11 +408,11 @@
                 if (file.name.endsWith('.ipk')) {
                     currentFile = file;
                     fileInput.files = files;
-                    addToOutput('success', `📁 Dropped: ${file.name} (${formatFileSize(file.size)})`);
+                    addToOutput('success', `Dropped: ${file.name} (${formatFileSize(file.size)})`);
                     enableCommands();
                     updateStatus('ready');
                 } else {
-                    addToOutput('error', '❌ Please drop a valid IPK file');
+                    addToOutput('error', 'Please drop a valid IPK file');
                 }
             }
         }
@@ -464,12 +464,12 @@
 
         async function runCommand(cmd) {
             if (isProcessing) {
-                addToOutput('warning', '⚠️ Command already running, please wait...');
+                addToOutput('warning', 'Command already running, please wait...');
                 return;
             }
 
             if ((cmd === 'resign' || cmd === 'validate' || cmd === 'extract') && !currentFile) {
-                addToOutput('error', '❌ No IPK file loaded. Please upload a file first.');
+                addToOutput('error', 'No IPK file loaded. Please upload a file first.');
                 return;
             }
 
