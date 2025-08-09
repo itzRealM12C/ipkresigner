@@ -1,0 +1,23 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "A Node.js CLI tool for resigning webOS IPK (webOS Package) files with valid certificates using webOS CLI integration.",
+  "main": "index.js",
+  "bin": {
+    "workspace": "bin/webos-resign.js"
+  },
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@webosose/ares-cli": "^2.4.0",
+    "commander": "^14.0.0",
+    "tar": "^7.4.3"
+  }
+}

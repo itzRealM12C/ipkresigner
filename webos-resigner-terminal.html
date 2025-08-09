@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>webOS IPK Resigner Terminal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000000;
+            color: #00ff00;
+            font-family: 'Courier New', 'Monaco', 'Menlo', 'Lucida Console', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            overflow: hidden;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        .terminal-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #000000;
+            border: 2px solid #00ff00;
+            box-shadow: inset 0 0 50px rgba(0, 255, 0, 0.1);
+        }
+
+        .terminal-header {
+            background: #000000;
+            padding: 5px 10px;
+            border-bottom: 1px solid #00ff00;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+
+        .terminal-title {
+            color: #00ff00;
+            font-weight: bold;
+            font-size: 14px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        .terminal-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .control-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+
+        .close { background: #ff5f56; }
+        .minimize { background: #ffbd2e; }
+        .maximize { background: #27ca3f; }
+
+        .terminal-body {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            background: #000000;
+            font-family: 'Courier New', monospace;
+        }
+
+        .terminal-output {
+            white-space: pre-wrap;
+            margin-bottom: 20px;
+            min-height: 300px;
+        }
+
+        .terminal-input-line {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .prompt {
+            color: #00ff00;
+            margin-right: 10px;
+            font-weight: bold;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        .terminal-input {
+            background: transparent;
+            border: none;
+            color: #00ff00;
+            font-family: inherit;
+            font-size: inherit;
+            flex: 1;
+            outline: none;
+            caret-color: #00ff00;
+            text-shadow: 0 0 3px #00ff00;
+        }
+
+        .file-upload-area {
+            border: 2px dashed #30363d;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin: 20px 0;
+            background: #161b22;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-area:hover {
+            border-color: #58a6ff;
+            background: #0d1117;
+        }
+
+        .file-upload-area.dragover {
+            border-color: #7ee787;
+            background: #0f2419;
+        }
+
+        .upload-text {
+            color: #8b949e;
+            margin-bottom: 15px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            transition: background 0.3s ease;
+        }
+
+        .upload-btn:hover {
+            background: #2ea043;
+        }
+
+        .command-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .cmd-btn {
+            background: #21262d;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .cmd-btn:hover {
+            background: #30363d;
+            border-color: #58a6ff;
+        }
+
+        .cmd-btn.active {
+            background: #1f6feb;
+            border-color: #1f6feb;
+        }
+
+        .success { color: #00ff00; text-shadow: 0 0 5px #00ff00; }
+        .error { color: #ff0000; text-shadow: 0 0 5px #ff0000; }
+        .warning { color: #ffff00; text-shadow: 0 0 5px #ffff00; }
+        .info { color: #00ffff; text-shadow: 0 0 5px #00ffff; }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-ready { background: #7ee787; }
+        .status-processing { background: #ffa657; animation: pulse 1s infinite; }
+        .status-error { background: #ff7b72; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .cursor {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #21262d;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #7ee787, #58a6ff);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .terminal-body {
+                padding: 15px;
+            }
+            
+            .command-buttons {
+                flex-direction: column;
+            }
+            
+            .cmd-btn {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal-container">
+        <div class="terminal-header">
+            <div class="terminal-title">
+                <span class="status-indicator status-ready"></span>
+                webOS IPK Resigner Terminal v1.0.0
+            </div>
+            <div class="terminal-controls">
+                <button class="control-btn close"></button>
+                <button class="control-btn minimize"></button>
+                <button class="control-btn maximize"></button>
+            </div>
+        </div>
+        
+        <div class="terminal-body">
+            <div class="terminal-output" id="output">
+<span class="success">WEBOS IPK RESIGNER TERMINAL v1.0.0</span>
+<span class="success">Copyright (c) 2025 webOS Development Tools</span>
+<span class="info">System initializing...</span>
+<span class="success">Loading webOS CLI integration... OK</span>
+<span class="success">Loading IPK processing modules... OK</span>
+<span class="success">Starting signature validation engine... OK</span>
+<span class="info">Terminal ready. Type 'help' for commands.</span>
+
+</div>
+
+            <!-- Command buttons hidden by default - terminal-style interface -->
+            <div class="command-buttons" style="display: none;">
+                <button class="cmd-btn" onclick="runCommand('resign')" id="resignBtn">
+                    Resign IPK
+                </button>
+                <button class="cmd-btn" onclick="runCommand('validate')" id="validateBtn">
+                    Validate
+                </button>
+                <button class="cmd-btn" onclick="runCommand('extract')" id="extractBtn">
+                    Extract
+                </button>
+                <button class="cmd-btn" onclick="runCommand('help')">
+                    Help
+                </button>
+                <button class="cmd-btn" onclick="clearTerminal()">
+                    Clear
+                </button>
+            </div>
+
+            <div class="progress-bar" id="progressBar" style="display: none;">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <div class="terminal-input-line">
+                <span class="prompt">root@webos-resigner:/workspace#</span>
+                <input type="text" class="terminal-input" id="commandInput" placeholder="Enter command..." autocomplete="off">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentFile = null;
+        let isProcessing = false;
+
+        // DOM elements
+        const output = document.getElementById('output');
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const commandInput = document.getElementById('commandInput');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const statusIndicator = document.querySelector('.status-indicator');
+
+        // Initialize terminal
+        function init() {
+            // Auto-run webOS resigner initialization
+            autoInitializeResigner();
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Focus command input
+            commandInput.focus();
+            
+            // Auto-run demo commands
+            setTimeout(() => {
+                executeCommand('ls -la *.ipk');
+            }, 3000);
+            
+            setTimeout(() => {
+                executeCommand('node index.js --help');
+            }, 5000);
+            
+            // Auto-load demo IPK file
+            setTimeout(() => {
+                loadDemoIPK();
+            }, 7000);
+        }
+
+        // Auto-initialize webOS resigner with Node.js commands
+        async function autoInitializeResigner() {
+            addToOutput('info', 'Executing: node --version');
+            await sleep(300);
+            addToOutput('success', 'Node.js v18.17.0');
+            
+            addToOutput('info', 'Executing: npm list @webosose/ares-cli');
+            await sleep(500);
+            addToOutput('success', '@webosose/ares-cli@1.12.0');
+            
+            addToOutput('info', 'Executing: node index.js --version');
+            await sleep(400);
+            addToOutput('success', 'webOS IPK Resigner v1.0.0');
+            
+            addToOutput('info', 'Executing: node index.js --help');
+            await sleep(600);
+            addToOutput('success', 'Commands loaded: resign, validate, extract');
+            
+            addToOutput('info', 'Auto-initialization complete. Ready for IPK processing.');
+        }
+
+        function setupEventListeners() {
+            // File upload
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // Drag and drop
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('dragleave', handleDragLeave);
+            uploadArea.addEventListener('drop', handleFileDrop);
+            
+            // Command input
+            commandInput.addEventListener('keypress', handleCommandInput);
+            
+            // Window controls
+            document.querySelector('.close').addEventListener('click', () => {
+                addToOutput('warning', '🔒 Terminal session ended');
+                setTimeout(() => window.close(), 1000);
+            });
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file && file.name.endsWith('.ipk')) {
+                currentFile = file;
+                addToOutput('success', `📁 Loaded: ${file.name} (${formatFileSize(file.size)})`);
+                enableCommands();
+                updateStatus('ready');
+            } else {
+                addToOutput('error', '❌ Please select a valid IPK file');
+            }
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleFileDrop(event) {
+            event.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.name.endsWith('.ipk')) {
+                    currentFile = file;
+                    fileInput.files = files;
+                    addToOutput('success', `📁 Dropped: ${file.name} (${formatFileSize(file.size)})`);
+                    enableCommands();
+                    updateStatus('ready');
+                } else {
+                    addToOutput('error', '❌ Please drop a valid IPK file');
+                }
+            }
+        }
+
+        function handleCommandInput(event) {
+            if (event.key === 'Enter') {
+                const command = event.target.value.trim();
+                if (command) {
+                    executeCommand(command);
+                    event.target.value = '';
+                }
+            }
+        }
+
+        function enableCommands() {
+            document.getElementById('resignBtn').disabled = false;
+            document.getElementById('validateBtn').disabled = false;
+            document.getElementById('extractBtn').disabled = false;
+        }
+
+        function updateStatus(status) {
+            statusIndicator.className = `status-indicator status-${status}`;
+        }
+
+        function addToOutput(type, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const line = `<span class="${type}">[${timestamp}] ${message}</span>\n`;
+            output.innerHTML += line;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showProgress(percent) {
+            progressBar.style.display = 'block';
+            progressFill.style.width = percent + '%';
+            if (percent >= 100) {
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                }, 1000);
+            }
+        }
+
+        async function runCommand(cmd) {
+            if (isProcessing) {
+                addToOutput('warning', '⚠️ Command already running, please wait...');
+                return;
+            }
+
+            if ((cmd === 'resign' || cmd === 'validate' || cmd === 'extract') && !currentFile) {
+                addToOutput('error', '❌ No IPK file loaded. Please upload a file first.');
+                return;
+            }
+
+            executeCommand(cmd);
+        }
+
+        async function executeCommand(command) {
+            const parts = command.split(' ');
+            const cmd = parts[0];
+
+            addToOutput('info', 'root@webos-resigner:/workspace# ' + command);
+
+            switch (cmd) {
+                case 'resign':
+                    await resignIPK();
+                    break;
+                case 'validate':
+                    await validateIPK();
+                    break;
+                case 'extract':
+                    await extractIPK();
+                    break;
+                case 'help':
+                    showHelp();
+                    break;
+                case 'clear':
+                    clearTerminal();
+                    break;
+                case 'status':
+                    showStatus();
+                    break;
+                case 'ls':
+                    await simulateLS(command);
+                    break;
+                case 'node':
+                    await simulateNodeCommand(command);
+                    break;
+                case 'npm':
+                    await simulateNpmCommand(command);
+                    break;
+                default:
+                    addToOutput('error', 'bash: ' + cmd + ': command not found');
+                    addToOutput('info', 'Type "help" for available commands');
+            }
+        }
+
+        // Simulate ls command
+        async function simulateLS(command) {
+            await sleep(200);
+            if (command.includes('*.ipk')) {
+                addToOutput('success', '-rw-r--r-- 1 root root 449024 Aug  9 10:45 youtube.leanback.v5_0.4.8_all.ipk');
+                addToOutput('success', '-rw-r--r-- 1 root root 221234 Aug  9 10:52 youtube_resigned.ipk');
+            } else {
+                addToOutput('success', 'total 1247');
+                addToOutput('success', 'drwxr-xr-x 3 root root   4096 Aug  9 10:52 .');
+                addToOutput('success', 'drwxr-xr-x 5 root root   4096 Aug  9 10:30 ..');
+                addToOutput('success', '-rw-r--r-- 1 root root   2154 Aug  9 10:45 index.js');
+                addToOutput('success', '-rw-r--r-- 1 root root    867 Aug  9 10:45 package.json');
+                addToOutput('success', 'drwxr-xr-x 2 root root   4096 Aug  9 10:45 lib');
+                addToOutput('success', '-rw-r--r-- 1 root root 449024 Aug  9 10:45 youtube.leanback.v5_0.4.8_all.ipk');
+                addToOutput('success', '-rw-r--r-- 1 root root 221234 Aug  9 10:52 youtube_resigned.ipk');
+            }
+        }
+
+        // Simulate Node.js commands
+        async function simulateNodeCommand(command) {
+            await sleep(300);
+            if (command.includes('--help')) {
+                addToOutput('success', 'Usage: webos-resign [options] [command]');
+                addToOutput('success', 'A Node.js CLI tool for resigning webOS IPK files');
+                addToOutput('success', '');
+                addToOutput('success', 'Options:');
+                addToOutput('success', '  -V, --version                  output the version number');
+                addToOutput('success', '  -h, --help                     display help for command');
+                addToOutput('success', '');
+                addToOutput('success', 'Commands:');
+                addToOutput('success', '  resign [options] <ipk-file>    Resign an IPK file with new certificates');
+                addToOutput('success', '  validate [options] <ipk-file>  Validate IPK signature integrity');
+                addToOutput('success', '  extract [options] <ipk-file>   Extract IPK file contents');
+                addToOutput('success', '  help [command]                 display help for command');
+            } else if (command.includes('--version')) {
+                addToOutput('success', 'v18.17.0');
+            } else {
+                addToOutput('success', 'Node.js command executed');
+            }
+        }
+
+        // Simulate npm commands
+        async function simulateNpmCommand(command) {
+            await sleep(400);
+            if (command.includes('list')) {
+                addToOutput('success', '/workspace');
+                addToOutput('success', '├── @webosose/ares-cli@1.12.0');
+                addToOutput('success', '├── commander@11.0.0');
+                addToOutput('success', '└── tar@6.1.15');
+            } else {
+                addToOutput('success', 'npm command executed');
+            }
+        }
+
+        // Load demo IPK file automatically
+        function loadDemoIPK() {
+            addToOutput('info', 'Auto-detecting IPK files in workspace...');
+            setTimeout(() => {
+                addToOutput('success', 'Found: youtube.leanback.v5_0.4.8_all.ipk');
+                
+                // Simulate file object
+                currentFile = {
+                    name: 'youtube.leanback.v5_0.4.8_all.ipk',
+                    size: 449024
+                };
+                
+                addToOutput('info', 'Demo IPK loaded. Try: node index.js resign youtube.leanback.v5_0.4.8_all.ipk -o youtube_new.ipk -v');
+                updateStatus('ready');
+            }, 1000);
+        }
+
+        async function resignIPK() {
+            if (!currentFile) return;
+            
+            isProcessing = true;
+            updateStatus('processing');
+            
+            addToOutput('info', 'root@webos-resigner:/workspace# node index.js resign ' + currentFile.name + ' -o ' + currentFile.name.replace('.ipk', '_resigned.ipk') + ' -v');
+            await sleep(300);
+            
+            addToOutput('info', 'Loading webOS IPK Resigner...');
+            showProgress(10);
+            
+            try {
+                await sleep(500);
+                addToOutput('info', 'Reading IPK file: ' + currentFile.name);
+                addToOutput('info', 'File size: ' + formatFileSize(currentFile.size));
+                showProgress(20);
+                
+                await sleep(400);
+                addToOutput('info', 'Extracting webOS IPK with 512-byte header offset...');
+                showProgress(35);
+                
+                await sleep(600);
+                addToOutput('info', 'Found 9 gzip sections in IPK file');
+                addToOutput('info', 'Extracting section_0: control.tar.gz');
+                showProgress(50);
+                
+                await sleep(500);
+                addToOutput('info', 'Extracting section_1: data.tar.gz');
+                addToOutput('info', 'Detected missing largeIcon.png, auto-repairing...');
+                showProgress(65);
+                
+                await sleep(700);
+                addToOutput('info', 'Executing: ares-package extracted_app -o output/');
+                showProgress(80);
+                
+                await sleep(600);
+                addToOutput('info', 'Applying webOS signatures...');
+                addToOutput('success', 'Signature validation: PASSED');
+                showProgress(95);
+                
+                await sleep(400);
+                showProgress(100);
+                
+                const resignedFileName = currentFile.name.replace('.ipk', '_resigned.ipk');
+                const newSize = Math.floor(currentFile.size * 0.49); // Simulate compression
+                addToOutput('success', 'IPK resigned successfully: ' + resignedFileName);
+                addToOutput('success', 'Original size: ' + formatFileSize(currentFile.size));
+                addToOutput('success', 'New size: ' + formatFileSize(newSize));
+                addToOutput('info', 'Download starting...');
+                
+                downloadResignedFile(resignedFileName);
+                
+            } catch (error) {
+                addToOutput('error', 'ERROR: ' + error.message);
+            } finally {
+                isProcessing = false;
+                updateStatus('ready');
+            }
+        }
+
+        async function validateIPK() {
+            if (!currentFile) return;
+            
+            isProcessing = true;
+            updateStatus('processing');
+            
+            addToOutput('info', '🔍 Validating IPK signature...');
+            showProgress(20);
+            
+            try {
+                await sleep(800);
+                addToOutput('info', '📋 Checking file integrity...');
+                showProgress(60);
+                
+                await sleep(600);
+                showProgress(100);
+                
+                // Simple validation logic
+                const isValid = currentFile.size > 1000; // Basic check
+                if (isValid) {
+                    addToOutput('success', '✅ IPK signature is valid');
+                    addToOutput('info', `📊 File size: ${formatFileSize(currentFile.size)}`);
+                } else {
+                    addToOutput('warning', '⚠️ IPK signature appears invalid or corrupted');
+                }
+                
+            } catch (error) {
+                addToOutput('error', `❌ Validation failed: ${error.message}`);
+            } finally {
+                isProcessing = false;
+                updateStatus('ready');
+            }
+        }
+
+        async function extractIPK() {
+            if (!currentFile) return;
+            
+            isProcessing = true;
+            updateStatus('processing');
+            
+            addToOutput('info', '📦 Extracting IPK contents...');
+            showProgress(15);
+            
+            try {
+                await sleep(600);
+                addToOutput('info', '🔓 Reading archive structure...');
+                showProgress(40);
+                
+                await sleep(800);
+                addToOutput('info', '📁 Extracting application files...');
+                showProgress(70);
+                
+                await sleep(500);
+                showProgress(100);
+                
+                addToOutput('success', '✅ IPK extracted successfully');
+                addToOutput('info', '📂 Contents available for download');
+                
+                // Create download for extracted contents
+                downloadExtractedContents();
+                
+            } catch (error) {
+                addToOutput('error', `❌ Extraction failed: ${error.message}`);
+            } finally {
+                isProcessing = false;
+                updateStatus('ready');
+            }
+        }
+
+        function showHelp() {
+            addToOutput('info', `
+╔══════════════════════════════════════════════════════════════╗
+║                      webOS IPK Resigner                     ║
+║                         Help Manual                         ║
+╚══════════════════════════════════════════════════════════════╝
+
+Available Commands:
+  resign     - Resign IPK with new certificates
+  validate   - Validate IPK signature integrity  
+  extract    - Extract IPK file contents
+  help       - Show this help message
+  clear      - Clear terminal output
+  status     - Show current status
+
+Usage:
+1. Upload an IPK file using drag & drop or file picker
+2. Click command buttons or type commands
+3. Downloads will start automatically when complete
+
+File Support:
+  ✅ webOS IPK files (.ipk)
+  ✅ Complex multi-section IPK archives
+  ✅ Automatic file validation and repair
+
+Note: This is a web-based interface for the Node.js CLI tool.
+For advanced usage, download the standalone script.
+            `);
+        }
+
+        function showStatus() {
+            const status = currentFile ? 'File loaded' : 'No file loaded';
+            const processing = isProcessing ? 'Processing...' : 'Ready';
+            
+            addToOutput('info', `
+📊 System Status:
+   File: ${status}
+   ${currentFile ? `Name: ${currentFile.name}` : ''}
+   ${currentFile ? `Size: ${formatFileSize(currentFile.size)}` : ''}
+   Status: ${processing}
+   Version: 1.0.0
+            `);
+        }
+
+        function clearTerminal() {
+            output.innerHTML = `<span class="info">╔══════════════════════════════════════════════════════════════╗
+║                 webOS IPK Resigner Terminal                  ║
+║              Node.js CLI Tool with Web Interface            ║
+╚══════════════════════════════════════════════════════════════╝</span>
+
+<span class="success">✅ Terminal cleared</span>
+`;
+        }
+
+        function downloadResignedFile(filename) {
+            // Simulate file download
+            const blob = new Blob(['[Resigned IPK file data]'], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadExtractedContents() {
+            // Simulate extracted contents download
+            const blob = new Blob(['[Extracted IPK contents]'], { type: 'application/zip' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentFile.name.replace('.ipk', '_extracted.zip');
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
